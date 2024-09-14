@@ -125,7 +125,30 @@ def calculate_probability_y_prime_u_hat_d(y_prime, u_hat, d, pi, pd, ps):
   Returns:
     The probability of y' given u_hat and drift d.
   """
-  # ... (Calculate the probability based on the IDS channel model and the given formulas) ...
-  # ...
+  N = len(y_prime)
+  p_y_prime_u_hat_d = 1
+
+  # Iterate over all symbols in y'
+  for j in range(N):
+    if y_prime[j] is None:
+      # Skip the positions where no symbol is received
+      continue
+
+    # Calculate the probability of the received symbol y_prime[j] given the decoded symbol u_hat[j]
+    if y_prime[j] == u_hat[j]:
+      p_y_prime_u_hat_d *= (1 - ps)
+    else:
+      p_y_prime_u_hat_d *= ps
+
+  # Calculate the probability of the drift value d
+  p_drift_d = 1
+  for k in range(d):
+    p_drift_d *= (1 - pi - pd)
+  p_drift_d *= pi if d > 0 else pd
+
+  # Combine the probabilities
+  p_y_prime_u_hat_d *= p_drift_d
 
   return p_y_prime_u_hat_d
+
+
