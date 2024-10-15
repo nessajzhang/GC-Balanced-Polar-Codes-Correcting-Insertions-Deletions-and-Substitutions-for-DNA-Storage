@@ -66,4 +66,4 @@ p_d = 0.3  # Example value for p_d
 # Build the transition matrix
 transition_matrix = build_transition_matrix(D, p_i, p_d)
 
-print("Transition Matrix:\n", transition_matrix)
+#print("Transition Matrix:\n", transition_matrix)
