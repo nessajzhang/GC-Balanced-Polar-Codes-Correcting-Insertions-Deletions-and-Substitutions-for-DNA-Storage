@@ -1,8 +1,9 @@
 import numpy as np
 from typing import List, Tuple, Dict
+from crc import crc_remainder, crc_check
 
 class SCLDecoder:
-    def __init__(self, N: int, K: int, L: int, pi: float, pd: float, ps: float):
+    def __init__(self, N: int, K: int, L: int, ps: float = 0.01, pi: float = 0.01, pd: float = 0.01):
         """
         Initialize the SCL decoder.
         
@@ -10,23 +11,22 @@ class SCLDecoder:
         N (int): Code length (must be a power of 2)
         K (int): Number of information bits
         L (int): List size
-        pi (float): Insertion probability
-        pd (float): Deletion probability
-        ps (float): Substitution probability
+        ps (float): Probability of substitution
+        pi (float): Probability of insertion
+        pd (float): Probability of deletion
         """
         self.N = N
         self.K = K
         self.L = L
-        self.n = int(np.log2(N))
+        self.ps = ps
         self.pi = pi
         self.pd = pd
-        self.ps = ps
         
         # Initialize paths
         self.paths = [{'bits': np.zeros(N, dtype=int), 'prob': 1.0, 'drift': np.zeros(N, dtype=int)} for _ in range(L)]
         
         # Initialize LLR storage
-        self.llr = np.zeros((self.n + 1, N, L))
+        self.llr = np.zeros((self.N // 2 + 1, N, L))
         
         # Generate frozen bit positions (simplified)
         self.frozen_bits = set(range(K, N))
@@ -79,17 +79,17 @@ class SCLDecoder:
         Returns:
         float: Calculated LLR
         """
-        if level == self.n:
+        if level == int(np.log2(self.N)):
             return self.channel_llr(y, d, i)
         
         length = self.N // (2 ** level)
-        left_llr = self.calculate_llr(y, d, level + 1, 2 * i, path_index)
-        right_llr = self.calculate_llr(y, d, level + 1, 2 * i + 1, path_index)
+        left_llr = self.calculate_llr(y, d, level + 1, 2 * i % self.N, path_index)
+        right_llr = self.calculate_llr(y, d, level + 1, (2 * i + 1) % self.N, path_index)
         
         if i % 2 == 0:
             return self.f_function(left_llr, right_llr)
         else:
-            u_partial = self.paths[path_index]['bits'][i - 1]
+            u_partial = self.paths[path_index]['bits'][(i - 1) % self.N]
             return self.g_function(left_llr, right_llr, u_partial)
 
     def select_paths(self) -> List[Tuple[Dict, int, float]]:
@@ -151,9 +151,12 @@ class SCLDecoder:
             else:
                 for path in self.paths:
                     path['bits'][i] = 0
-                    # Update drift for frozen bits too
-                    if i > 0:
-                        path['drift'][i] = path['drift'][i - 1]
+                    path['drift'][i] = path['drift'][i - 1] if i > 0 else 0
         
         best_path = max(self.paths, key=lambda x: x['prob'])
-        return best_path['bits'][:self.K]
+        decoded_bits = best_path['bits'][:self.K]
+        
+        # Perform CRC check if needed
+        # crc_check(decoded_bits, polynomial_bitstring, check_value)
+        
+        return decoded_bits
